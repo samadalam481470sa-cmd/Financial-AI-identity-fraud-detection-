@@ -112,3 +112,36 @@ def test_device_change_from_signed_history(environment):
     })
     assert response.status_code == 200
     assert "SIGNED_DEVICE_CHANGE" in response.json()["reason_codes"]
+
+def test_signed_transfer_graph_detects_short_cycles(environment):
+    from app.security import ref
+    client, key = environment
+    assert emit(client, key, subject_id="alice", event_type="transfer_submitted", beneficiary_id="bob").status_code == 201
+    assert emit(client, key, subject_id="bob", event_type="transfer_submitted", beneficiary_id="carol").status_code == 201
+    assert emit(client, key, subject_id="carol", event_type="transfer_submitted", beneficiary_id="alice").status_code == 201
+    subject = ref("alpha", "alice")
+    data = client.get("/v1/graph/accounts/" + subject, headers={"X-API-Key": "admin"})
+    assert data.status_code == 200, data.text
+    graph = data.json()
+    assert graph["features"]["short_3_cycle_count"] == 1
+    assert "SIGNED_SHORT_TRANSFER_CYCLE" in graph["reason_codes"]
+    assert graph["features"]["connected_component_size"] == 3
+    assert client.get("/v1/graph/accounts/" + subject, headers={"X-API-Key": "service"}).status_code == 403
+
+
+def test_signed_graph_fanout_and_shared_beneficiary(environment):
+    from app.security import ref
+    client, key = environment
+    for i in range(5):
+        assert emit(client, key, subject_id="alice", event_type="transfer_submitted", beneficiary_id=f"payee-{i}").status_code == 201
+    for member in ("alice", "bob", "carol"):
+        assert emit(client, key, subject_id=member, event_type="transfer_submitted", beneficiary_id="shared-payee").status_code == 201
+    response = client.get("/v1/graph/accounts/" + ref("alpha", "alice"), headers={"X-API-Key": "admin"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["features"]["distinct_beneficiaries"] == 6
+    assert body["features"]["max_shared_beneficiary_sources"] == 3
+    assert "SIGNED_FANOUT_24H" in body["reason_codes"]
+    assert "SIGNED_SHARED_BENEFICIARY" in body["reason_codes"]
+    assert body["graph_risk_points"] > 0
+    assert client.get("/v1/graph/accounts/not-a-hash", headers={"X-API-Key": "admin"}).status_code == 422
