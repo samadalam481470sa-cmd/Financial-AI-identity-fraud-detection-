@@ -8,14 +8,24 @@ A runnable full-stack fraud prevention and identity continuity research prototyp
 ## What is implemented
 
 - FastAPI service with environment-configured API-key authentication, tenant separation and admin/analyst roles
-- Server-side Ed25519 verification of registered credentials for signed login, transfer, profile change and recovery intent
+- **Real WebAuthn passkey registration and authentication:** browser authenticator, server-verified RP ID/origin, signed challenge, required user verification, exact-action binding, revocation and replay prevention (sandbox synthetic users only)
+- Legacy Ed25519 demonstration signing for comparisons; **account recovery remains disabled** until independent re-proofing exists
 - One-time three-minute challenges bound to tenant, user, action, amount, currency and beneficiary, with replay prevention
 - Revocation, idempotent request handling, authenticated case management, persistent SQLite records
 - Baseline deterministic fraud risk rules, hard policy gates, decision reasons, event hash chaining and model/policy versions
 - Responsive React/Vite dashboard: unsigned vs signed evaluation, browser cryptographic demo, cases and audit events
 - GitHub Actions automated tests and build, Docker Compose full-stack web + API with same-origin Nginx proxy
-- Independent one-hour observed transaction velocity, tenant-scoped aggregate metrics and verifiable local audit hash chains
+- Independently signed source telemetry (Ed25519 key + service role) with anti-replay, tenant isolation, timestamp validation, hashed references and verified fraud signal extraction
+- Server-measured transaction velocity, tenant-scoped analytics and verifiable local audit hash chains
 - [Engineering blueprint](docs/BLUEPRINT.md) and [security limits and attacker tests](docs/SECURITY.md)
+
+## Working WebAuthn and authenticated fraud telemetry
+
+This repository now implements genuine browser passkey registration and transaction-bound assertions verified by py_webauthn. The **real-browser Chromium virtual-authenticator test** validates enrollment, unsigned transaction denial, and signed low-risk authorization. The project also accepts verified-source fraud events and derives risk signals from separately authenticated, Ed25519-signed telemetry.
+
+This is still **synthetic sandbox assurance**, not legally verified identities or production transfers. In staging, synthetic enrollment is disabled and potential ALLOW decisions are held pending a real proofing provider. See [WebAuthn & signed telemetry engineering guide](docs/WEBAUTHN_AND_TELEMETRY.md), [production release gates](docs/PRODUCTION_READINESS.md), and [browser integration test](.github/workflows/webauthn-e2e.yml).
+
+**Local browser flow:** copy `.env.example` to `.env`, set an administrator API key, run Docker Compose, open `http://localhost:8080`, click **1. Synthetic proofing grant**, **2. Register WebAuthn passkey**, and **Evaluate with passkey**. The expected RP ID is `localhost` and origin is `http://localhost:8080` by default. If using Vite on port 5173 instead of Docker, set backend `AEGIS_ORIGIN=http://localhost:5173`.
 
 ## Current security and production status
 
@@ -106,6 +116,8 @@ The demo browser Ed25519 ceremony is **not** WebAuthn or proof that a person has
 | GET | `/v1/cases` | Analyst/Admin |
 | PATCH | `/v1/cases/{case_id}` | Analyst/Admin |
 
+Additional endpoints: `POST /v1/passkeys/sandbox-proofing` (local synthetic grants), `POST /v1/passkeys/registration/options`, `POST /v1/passkeys/registration/verify`, `POST /v1/passkeys/authentication/options`, `DELETE /v1/passkeys/{credential_id}`, and `POST /v1/telemetry/events` (authenticated service + verified source signature).
+
 Additional analyst endpoints: `GET /v1/metrics` and `GET /v1/audit/verify`. The audit chain is not externally anchored and does not guarantee independent immutability.
 
 Requests use `X-API-Key` from the `AEGIS_API_KEYS` JSON environment variable, e.g. `{"your-key":{"tenant":"demo","role":"admin"}}`. Never commit or publish real keys.
@@ -152,7 +164,7 @@ The API never executes this prototype model in sensitive decisions. Real financi
 
 ## Next enterprise milestones
 
-- WebAuthn relying-party implementation and phishing-resistant authentication instead of demo signing
+- Production-grade identity-proofing integration and lifecycle management alongside the implemented browser WebAuthn ceremonies
 - Real third-party document/issuer proofing, verified telemetry, trusted evidence custody and accessible secure recovery
 - PostgreSQL RLS, Kafka events, Redis aggregation, graph stores, OIDC IAM, AWS/Kubernetes/Terraform and KMS/HSM
 - Validated calibrated fraud models using representative data, temporal graph analytics, fairness tests, red teaming
