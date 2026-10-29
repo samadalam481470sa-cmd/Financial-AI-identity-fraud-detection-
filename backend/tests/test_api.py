@@ -41,7 +41,8 @@ def test_login_low_risk(client):
     r = client.post("/v1/evaluate", headers=headers(), json={
         "request_id": str(uuid.uuid4()), "subject_id": "alice", "action": "login", "known_device": True
     })
-    assert r.json()["decision"] == "allow"
+    assert r.json()["decision"] == "challenge"
+    assert "SIGNED_ACTION_REQUIRED" in r.json()["reason_codes"]
 
 def test_signature_and_replay(client):
     private = Ed25519PrivateKey.generate()
