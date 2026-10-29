@@ -23,7 +23,7 @@ from webauthn import (
     verify_authentication_response,
     verify_registration_response,
 )
-from webauthn.helpers.exceptions import InvalidAuthenticationResponse, InvalidRegistrationResponse
+from webauthn.helpers.exceptions import WebAuthnException
 from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
@@ -148,7 +148,7 @@ def verify_passkey_assertion(c, item, tenant, digest):
             credential_current_sign_count=stored["sign_count"],
             require_user_verification=True,
         )
-    except (InvalidAuthenticationResponse, ValueError, TypeError, KeyError):
+    except (WebAuthnException, ValueError, TypeError, KeyError):
         return False
     if not result.user_verified:
         return False
@@ -245,7 +245,7 @@ def register_passkey_routes(app, database, principal, require_admin, digest, now
                     expected_origin=origin,
                     require_user_verification=True,
                 )
-            except (InvalidRegistrationResponse, ValueError, TypeError, KeyError):
+            except (WebAuthnException, ValueError, TypeError, KeyError):
                 raise HTTPException(403, "WebAuthn registration verification failed")
             credential_id = b64url(result.credential_id)
             c.execute("UPDATE passkey_challenges SET used=1 WHERE id=? AND used=0", (item.challenge_id,))
