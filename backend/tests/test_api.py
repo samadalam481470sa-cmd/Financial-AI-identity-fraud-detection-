@@ -144,3 +144,51 @@ def test_analyst_cannot_evaluate_or_start_challenge(client):
 def test_development_keys_disabled_outside_development(client, monkeypatch):
     monkeypatch.setenv("AEGIS_MODE", "production")
     assert client.get("/v1/events", headers=headers()).status_code == 503
+
+def test_staging_requires_valid_oidc_config(monkeypatch):
+    from app.auth import validate_mode
+    monkeypatch.setenv("AEGIS_MODE", "staging")
+    monkeypatch.delenv("AEGIS_OIDC_ISSUER", raising=False)
+    with pytest.raises(RuntimeError, match="OIDC"):
+        validate_mode()
+
+def test_staging_rejects_development_keys(client, monkeypatch):
+    from app.auth import validate_mode
+    monkeypatch.setenv("AEGIS_MODE", "staging")
+    monkeypatch.setenv("AEGIS_OIDC_ISSUER", "https://identity.example.org/")
+    monkeypatch.setenv("AEGIS_OIDC_AUDIENCE", "aegis-api")
+    monkeypatch.setenv("AEGIS_OIDC_JWKS_URL", "https://identity.example.org/keys")
+    with pytest.raises(RuntimeError, match="Demo API keys"):
+        validate_mode()
+    monkeypatch.delenv("AEGIS_API_KEYS")
+    validate_mode()
+    assert client.get("/v1/events", headers=headers()).status_code == 401
+
+def test_staging_jwt_signature_and_audience(client, monkeypatch):
+    import jwt
+    from cryptography.hazmat.primitives.asymmetric.rsa import generate_private_key
+    from datetime import datetime, timezone, timedelta
+    from app import auth
+    monkeypatch.setenv("AEGIS_MODE", "staging")
+    monkeypatch.setenv("AEGIS_OIDC_ISSUER", "https://issuer.example.org/")
+    monkeypatch.setenv("AEGIS_OIDC_AUDIENCE", "aegis-api")
+    monkeypatch.setenv("AEGIS_OIDC_JWKS_URL", "https://issuer.example.org/jwks")
+    secret = generate_private_key(public_exponent=65537, key_size=2048)
+    class LocalJWKS:
+        def get_signing_key_from_jwt(self, _):
+            class Key: pass
+            key = Key()
+            key.key = secret.public_key()
+            return key
+    monkeypatch.setattr(auth, "jwks_client", lambda: LocalJWKS())
+    now = datetime.now(timezone.utc)
+    claims = {"sub": "analyst1", "iss": "https://issuer.example.org/",
+              "aud": "aegis-api", "exp": now + timedelta(minutes=5),
+              "iat": now, "aegis_tenant": "t1", "aegis_role": "analyst"}
+    valid = jwt.encode(claims, secret, algorithm="RS256")
+    response = client.get("/v1/events", headers={"Authorization": "Bearer " + valid})
+    assert response.status_code == 200
+    invalid = jwt.encode({**claims, "aud": "another-api"}, secret, algorithm="RS256")
+    assert client.get("/v1/events", headers={"Authorization": "Bearer " + invalid}).status_code == 401
+    signed_but_wrong_role = jwt.encode({**claims, "aegis_role": "superuser"}, secret, algorithm="RS256")
+    assert client.get("/v1/events", headers={"Authorization": "Bearer " + signed_but_wrong_role}).status_code == 403
