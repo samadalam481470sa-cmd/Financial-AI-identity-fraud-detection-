@@ -22,7 +22,7 @@ try {
   const backendErrors = [];
   page.on('console', message => { if(message.type()==='error') backendErrors.push(message.text()); });
   await page.goto(baseURL, {waitUntil:'networkidle'});
-  await page.getByRole('textbox',{name:'API key'}).fill('local-web-authn-e2e-key');
+  await page.locator('input[aria-label="API key"]').fill('local-web-authn-e2e-key');
   await page.getByRole('button',{name:'1. Synthetic proofing grant'}).click();
   await page.getByText('Synthetic-only enrollment grant recorded.',{exact:false}).waitFor({timeout:15000});
   await page.getByRole('button',{name:'2. Register WebAuthn passkey'}).click();
