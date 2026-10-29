@@ -13,8 +13,21 @@ A runnable full-stack fraud prevention and identity continuity research prototyp
 - Revocation, idempotent request handling, authenticated case management, persistent SQLite records
 - Baseline deterministic fraud risk rules, hard policy gates, decision reasons, event hash chaining and model/policy versions
 - Responsive React/Vite dashboard: unsigned vs signed evaluation, browser cryptographic demo, cases and audit events
-- GitHub Actions automated tests and build, Docker API configuration
+- GitHub Actions automated tests and build, Docker Compose full-stack web + API with same-origin Nginx proxy
+- Independent one-hour observed transaction velocity, tenant-scoped aggregate metrics and verifiable local audit hash chains
 - [Engineering blueprint](docs/BLUEPRINT.md) and [security limits and attacker tests](docs/SECURITY.md)
+
+## One-command full-stack Docker demo
+
+```bash
+git clone https://github.com/samadalam481470sa-cmd/Financial-AI-identity-fraud-detection-.git
+cd Financial-AI-identity-fraud-detection-
+cp .env.example .env
+# Replace example API keys with unique local-only keys in .env
+docker compose up --build
+```
+
+Open **http://localhost:8080** and enter the configured admin key. This setup runs both the React dashboard and FastAPI server behind a same-origin Nginx proxy; ports bind to localhost only. See [local deployment guide](docs/DEPLOYMENT.md).
 
 ## Run locally
 
@@ -75,6 +88,8 @@ The demo browser Ed25519 ceremony is **not** WebAuthn or proof that a person has
 | GET | `/v1/cases` | Analyst/Admin |
 | PATCH | `/v1/cases/{case_id}` | Analyst/Admin |
 
+Additional analyst endpoints: `GET /v1/metrics` and `GET /v1/audit/verify`. The audit chain is not externally anchored and does not guarantee independent immutability.
+
 Requests use `X-API-Key` from the `AEGIS_API_KEYS` JSON environment variable, e.g. `{"your-key":{"tenant":"demo","role":"admin"}}`. Never commit or publish real keys.
 
 ## Test and container
@@ -88,7 +103,7 @@ cd frontend && npm install && npm run build
 AEGIS_API_KEYS='{"your-local-secret":{"tenant":"sandbox","role":"admin"}}' docker compose up --build
 ```
 
-Docker exposes the API only on localhost:8000. The React frontend starts separately with Vite.
+Docker exposes the API on localhost:8000 and the built React dashboard on localhost:8080. Both bind to loopback only.
 
 ## Architecture
 
