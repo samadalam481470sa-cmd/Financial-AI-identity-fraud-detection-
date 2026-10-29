@@ -201,3 +201,46 @@ def test_sensitive_api_rate_limit(client, monkeypatch):
     blocked = client.post("/v1/challenges", json=request, headers=headers())
     assert blocked.status_code == 429
     assert "Retry-After" in blocked.headers
+
+def test_staging_never_allows_action_without_proofing(client, monkeypatch):
+    import jwt
+    from datetime import datetime, timedelta, timezone
+    from cryptography.hazmat.primitives.asymmetric.rsa import generate_private_key
+    from app import auth
+    ed_key = Ed25519PrivateKey.generate()
+    public = ed_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw, format=serialization.PublicFormat.Raw)
+    client.post("/v1/credentials", headers=headers(), json={
+        "subject_id": "alice", "credential_id": "staging-credential",
+        "ed25519_public_key_b64": base64.b64encode(public).decode()})
+    intent = {"subject_id": "alice", "action": "transfer", "amount_minor": 100,
+              "currency": "USD", "beneficiary_id": "bob"}
+    signed_challenge = client.post("/v1/challenges", json=intent, headers=headers()).json()
+    signature = base64.b64encode(ed_key.sign(signed_challenge["message_to_sign"].encode())).decode()
+    monkeypatch.setenv("AEGIS_MODE", "staging")
+    monkeypatch.setenv("AEGIS_OIDC_ISSUER", "https://issuer.example.org/")
+    monkeypatch.setenv("AEGIS_OIDC_AUDIENCE", "aegis-api")
+    monkeypatch.setenv("AEGIS_OIDC_JWKS_URL", "https://issuer.example.org/jwks")
+    rsa_key = generate_private_key(public_exponent=65537, key_size=2048)
+    class StaticJwks:
+        def get_signing_key_from_jwt(self, token):
+            class SigningKey: pass
+            k = SigningKey()
+            k.key = rsa_key.public_key()
+            return k
+    monkeypatch.setattr(auth, "jwks_client", lambda: StaticJwks())
+    now = datetime.now(timezone.utc)
+    token = jwt.encode({
+        "sub": "test-service", "iss": "https://issuer.example.org/", "aud": "aegis-api",
+        "exp": now + timedelta(minutes=5), "iat": now,
+        "aegis_tenant": "t1", "aegis_role": "service"
+    }, rsa_key, algorithm="RS256")
+    result = client.post("/v1/evaluate", headers={"Authorization": "Bearer " + token},
+                         json={**intent, "request_id": str(uuid.uuid4()),
+                               "credential_id": "staging-credential",
+                               "challenge_id": signed_challenge["challenge_id"],
+                               "signature_b64": signature, "known_device": True})
+    assert result.status_code == 200
+    assert result.json()["decision"] == "hold"
+    assert result.json()["evidence"]["signature_verified"]
+    assert "VERIFIED_IDENTITY_PROOFING_REQUIRED" in result.json()["reason_codes"]
