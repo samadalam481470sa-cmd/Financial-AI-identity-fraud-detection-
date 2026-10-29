@@ -121,6 +121,17 @@ SQLite transactional storage
 Decisions    Cases       Audit / integrity hashes
 ```
 
+## Reproducible ML research (not in authorization path)
+
+See [ml/README.md](ml/README.md). A separate trainable gradient-boosted classification experiment creates **only synthetic labeled data**, performs train/calibration/test splits and exports held-out precision, recall, average precision, ROC-AUC and Brier score. This is a research sandbox, **not a validated real-world fraud detection model**.
+
+```bash
+pip install -r ml/requirements.txt
+python ml/train.py --rows 6000 --output ml/artifacts
+```
+
+The API never executes this prototype model in sensitive decisions. Real financial deployment would require approved non-synthetic datasets, independently verified features, calibrated risk thresholds and a safe shadow validation rollout.
+
 ## Next enterprise milestones
 
 - WebAuthn relying-party implementation and phishing-resistant authentication instead of demo signing
