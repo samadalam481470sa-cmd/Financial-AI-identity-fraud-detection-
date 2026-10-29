@@ -31,7 +31,7 @@ def now():
 @contextmanager
 def database():
     with LOCK:
-        connection = sqlite3.connect(DB_PATH, timeout=10, isolation_level=None)
+        connection = sqlite3.connect(os.getenv("AEGIS_DB_PATH", DB_PATH), timeout=10, isolation_level=None)
         connection.row_factory = sqlite3.Row
         try:
             connection.execute("PRAGMA busy_timeout=10000")
