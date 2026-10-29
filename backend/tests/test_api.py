@@ -192,3 +192,12 @@ def test_staging_jwt_signature_and_audience(client, monkeypatch):
     assert client.get("/v1/events", headers={"Authorization": "Bearer " + invalid}).status_code == 401
     signed_but_wrong_role = jwt.encode({**claims, "aegis_role": "superuser"}, secret, algorithm="RS256")
     assert client.get("/v1/events", headers={"Authorization": "Bearer " + signed_but_wrong_role}).status_code == 403
+
+def test_sensitive_api_rate_limit(client, monkeypatch):
+    monkeypatch.setenv("AEGIS_RATE_LIMIT_PER_MINUTE", "2")
+    request = {"subject_id": "demo", "action": "login"}
+    assert client.post("/v1/challenges", json=request, headers=headers()).status_code == 200
+    assert client.post("/v1/challenges", json=request, headers=headers()).status_code == 200
+    blocked = client.post("/v1/challenges", json=request, headers=headers())
+    assert blocked.status_code == 429
+    assert "Retry-After" in blocked.headers
