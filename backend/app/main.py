@@ -9,6 +9,7 @@ import os
 import secrets
 import sqlite3
 import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -28,6 +29,28 @@ async def security_headers(request: Request, call_next):
     # Explicit protections; TLS and IdP remain the deployer's responsibility.
     if int(request.headers.get("content-length", "0") or "0") > 131072:
         return JSONResponse({"detail": "Request too large"}, status_code=413)
+    if request.method == "POST" and request.url.path in ("/v1/evaluate", "/v1/challenges", "/v1/credentials"):
+        # SQLite transaction serializes increments across local processes. Source
+        # address is informational; do not trust caller-supplied forwarded headers.
+        bearer = request.headers.get("authorization", "")
+        apikey = request.headers.get("x-api-key", "")
+        client = request.client.host if request.client else "unknown"
+        identity = hashlib.sha256((apikey or bearer or client).encode()).hexdigest()
+        bucket = int(time.time() // 60)
+        limit = max(1, min(10000, int(os.getenv("AEGIS_RATE_LIMIT_PER_MINUTE", "120"))))
+        with database() as c:
+            c.execute("BEGIN IMMEDIATE")
+            c.execute("DELETE FROM rate_windows WHERE bucket < ?", (bucket - 2,))
+            c.execute("""INSERT INTO rate_windows (identity, bucket, attempts)
+                         VALUES (?, ?, 1)
+                         ON CONFLICT(identity,bucket) DO UPDATE SET attempts=attempts+1""",
+                      (identity, bucket))
+            total = c.execute("SELECT attempts FROM rate_windows WHERE identity=? AND bucket=?",
+                              (identity, bucket)).fetchone()["attempts"]
+            c.execute("COMMIT")
+        if total > limit:
+            return JSONResponse({"detail": "Request rate limit exceeded"}, status_code=429,
+                                headers={"Retry-After": str(60 - int(time.time()) % 60)})
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Cache-Control"] = "no-store"
@@ -59,6 +82,10 @@ def database():
 def init_db():
     with database() as c:
         c.executescript("""
+        CREATE TABLE IF NOT EXISTS rate_windows (
+            identity TEXT NOT NULL, bucket INTEGER NOT NULL, attempts INTEGER NOT NULL,
+            PRIMARY KEY (identity, bucket)
+        );
         CREATE TABLE IF NOT EXISTS keys (
             tenant TEXT NOT NULL, subject TEXT NOT NULL, credential_id TEXT NOT NULL,
             public_key TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0,
