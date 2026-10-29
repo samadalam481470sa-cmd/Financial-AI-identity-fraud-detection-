@@ -5,9 +5,16 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       AEGIS_DB_PATH: /data/aegis.db
-      AEGIS_API_KEYS: ${AEGIS_API_KEYS:?Set AEGIS_API_KEYS in your shell or .env file}
+      AEGIS_API_KEYS: ${AEGIS_API_KEYS:?Set AEGIS_API_KEYS in your .env file or shell}
     volumes:
       - aegis-data:/data
+    restart: unless-stopped
+  web:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - api
     restart: unless-stopped
 volumes:
   aegis-data:
