@@ -18,6 +18,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
+from .security import ref
 
 
 class TelemetryEvent(BaseModel):
@@ -46,10 +47,6 @@ def canonical_message(event):
     encoded = json.dumps(event.model_dump(mode="json"),
                          sort_keys=True, separators=(",", ":")).encode("utf-8")
     return b"AEGIS-TELEMETRY-V1\n" + encoded
-
-
-def ref(tenant, identifier):
-    return hashlib.sha256((tenant + ":" + identifier).encode()).hexdigest()[:20]
 
 
 def source_config():
