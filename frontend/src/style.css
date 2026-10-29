@@ -7,3 +7,11 @@
 .audit-status strong{color:#70ded0}
 .audit-status span{font-size:12px;color:#7792a7}
 @media(max-width:600px){.metric-grid{grid-template-columns:repeat(2,1fr)}}
+
+.passkey-panel{margin:20px 0;border-color:#37786d;display:flex;align-items:center;justify-content:space-between;gap:18px}
+.passkey-panel p{max-width:700px}
+.passkey-panel small{color:#9cccbf}
+.passkey-panel .actions{min-width:220px;flex-direction:column;margin:0}
+.legacy-credential{margin:20px 0}
+.connection .auth-mode{max-width:200px}
+@media(max-width:850px){.passkey-panel{flex-direction:column;align-items:stretch}.connection{flex-wrap:wrap}}
