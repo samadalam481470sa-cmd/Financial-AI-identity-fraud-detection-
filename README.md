@@ -3,7 +3,7 @@
 
 A runnable full-stack fraud prevention and identity continuity research prototype. **Stolen personal information alone must not authorize access or sensitive actions.**
 
-**Status:** local testable demo. Not certified, independently audited, production-ready, a live bank integration, a real identity-proofing system or a trained fraud ML model. Use synthetic data only.
+**Status:** local testable demo. Non-development API-key authentication is disabled and production mode currently refuses startup pending external integrations and independent review. Not certified, independently audited, production-ready, a live bank integration, a real identity-proofing system or a trained fraud ML model. Use synthetic data only.
 
 ## What is implemented
 
@@ -16,6 +16,20 @@ A runnable full-stack fraud prevention and identity continuity research prototyp
 - GitHub Actions automated tests and build, Docker Compose full-stack web + API with same-origin Nginx proxy
 - Independent one-hour observed transaction velocity, tenant-scoped aggregate metrics and verifiable local audit hash chains
 - [Engineering blueprint](docs/BLUEPRINT.md) and [security limits and attacker tests](docs/SECURITY.md)
+
+## Dashboard screenshots
+
+These are captured from the **real React dashboard** by a browser automation workflow using explicitly **synthetic, mocked API responses**. They demonstrate the UI; they are **not actual fraud detections** or evidence of trained-model performance.
+
+### Security operations overview
+
+![AEGIS IDENTITY dashboard overview — synthetic demonstration](docs/images/dashboard-overview.png)
+
+### Fraud decision and investigation workflow
+
+![AEGIS IDENTITY fraud detection — illustrative risk score and HOLD decision](docs/images/fraud-detection-demo.png)
+
+See [screenshot capture workflow](.github/workflows/dashboard-screenshots.yml) and [browser automation fixture](scripts/capture-dashboard.mjs) to reproduce the images.
 
 ## One-command full-stack Docker demo
 
