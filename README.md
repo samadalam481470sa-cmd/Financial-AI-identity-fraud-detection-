@@ -3,7 +3,9 @@
 
 <div align="center">
 
-![AEGIS IDENTITY — security engineering hero](docs/images/aegis-identity-hero.svg)
+![AEGIS IDENTITY — conceptual product showcase: passkeys, signed telemetry, graph intelligence and policy engine](docs/images/aegis-concept-hero.webp)
+
+*Concept artwork · synthetic demonstration data · not a screenshot of implemented production features*
 
 **Passkeys · Cryptographically signed telemetry · Risk intelligence · Fraud graph analytics**
 
@@ -46,6 +48,17 @@ Subject, device and beneficiary references use HMAC-based tenant-specific pseudo
 ## Current security and production status
 
 The API now restricts development keys to `AEGIS_MODE=development`, supports configured issuer-verified JWT access tokens in `AEGIS_MODE=staging`, rate-limits sensitive requests, and blocks account recovery without a separate re-proofing flow. **Production mode deliberately refuses to start:** identity proofing, WebAuthn, trusted signals, production infrastructure and security validation must be completed first. See [production readiness gates](docs/PRODUCTION_READINESS.md). These are security safeguards, not proof of certification.
+
+## Product vision — design concepts
+
+These three visual mockups illustrate the intended future interface. They were generated from synthetic data for portfolio presentation. **They are conceptual artwork, not screenshots of the current application**, and any example numbers or interface features depicted should not be interpreted as live functionality.
+
+| Risk intelligence overview | High-risk fraud case investigation |
+|:--:|:--:|
+| ![AEGIS IDENTITY conceptual dark-theme analytics dashboard — synthetic data](docs/images/aegis-concept-dashboard.webp) | ![AEGIS IDENTITY conceptual fraud investigation case detail — synthetic data](docs/images/aegis-concept-case.webp) |
+| *Design concept: risk cards, events and investigation queue* | *Design concept: case details, signed evidence and relationship graph* |
+
+**What currently works:** [WebAuthn browser integration](.github/workflows/webauthn-e2e.yml), [fraud engine and event ingestion](backend/app/), [documented limitations](docs/PRODUCTION_READINESS.md).
 
 ## Dashboard gallery — real application screenshots
 
