@@ -291,6 +291,12 @@ def evaluate(item: Evaluation, p=Depends(principal)):
             decision = "challenge"
         else:
             decision = "allow"
+        # Staging has verified service access tokens, but does not yet have
+        # validated issuer proofing or trustworthy device/beneficiary signals.
+        # Authentication of an API caller is not identity proof of an end user.
+        if os.getenv("AEGIS_MODE", "development") != "development" and decision == "allow":
+            decision = "hold"
+            reasons.append("VERIFIED_IDENTITY_PROOFING_REQUIRED")
         event_id = str(uuid.uuid4())
         date = now()
         previous = c.execute("SELECT event_hash FROM decisions WHERE tenant=? ORDER BY rowid DESC LIMIT 1",
