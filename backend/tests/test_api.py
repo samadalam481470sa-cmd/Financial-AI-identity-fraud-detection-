@@ -82,3 +82,41 @@ def test_tenant_isolation(client):
     assert len(client.get("/v1/events", headers=headers("other")).json()["events"]) == 0
     assert client.get("/v1/events", headers=headers("analyst")).status_code == 200
     assert client.post("/v1/credentials", headers=headers("analyst"), json={}).status_code == 403
+
+def test_server_measured_velocity_and_metrics(client):
+    for _ in range(4):
+        response = client.post("/v1/evaluate", headers=headers(), json={
+            "request_id": str(uuid.uuid4()), "subject_id": "velocity-user", "action": "login",
+            "known_device": True, "velocity_1h": 0
+        })
+        assert response.status_code == 200
+    last = client.post("/v1/evaluate", headers=headers(), json={
+        "request_id": str(uuid.uuid4()), "subject_id": "velocity-user", "action": "login",
+        "known_device": True, "velocity_1h": 0
+    })
+    assert "SERVER_OBSERVED_VELOCITY" in last.json()["reason_codes"]
+    assert last.json()["evidence"]["server_observed_events_1h"] == 4
+    metrics = client.get("/v1/metrics", headers=headers())
+    assert metrics.status_code == 200
+    assert metrics.json()["counts"]["challenge"] >= 5
+    assert client.get("/v1/metrics").status_code == 401
+
+def test_audit_chain_detects_tampering(client):
+    evaluate(client)
+    evaluate(client, amount_minor=100)
+    verified = client.get("/v1/audit/verify", headers=headers())
+    assert verified.status_code == 200
+    assert verified.json()["valid"]
+    assert verified.json()["checked"] == 2
+    from app.main import database
+    with database() as connection:
+        connection.execute("UPDATE decisions SET score=0 WHERE tenant='t1' AND rowid=(SELECT MIN(rowid) FROM decisions)")
+    broken = client.get("/v1/audit/verify", headers=headers())
+    assert broken.json()["valid"] is False
+    assert broken.json()["checked"] == 0
+
+def test_tenant_specific_audit(client):
+    evaluate(client)
+    assert client.get("/v1/audit/verify", headers=headers("other")).json()["checked"] == 0
+    assert client.get("/v1/metrics", headers=headers("other")).json()["open_cases"] == 0
+    assert client.get("/v1/audit/verify", headers=headers("analyst")).status_code == 200
