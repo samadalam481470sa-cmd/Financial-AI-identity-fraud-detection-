@@ -66,6 +66,7 @@ def test_signature_and_replay(client):
     request["request_id"] = str(uuid.uuid4())
     replay = client.post("/v1/evaluate", headers=headers(), json=request)
     assert replay.json()["decision"] == "hold"
+    request["request_id"] = str(uuid.uuid4())
     request["amount_minor"] = 8000
     tamper = client.post("/v1/evaluate", headers=headers(), json=request)
     assert tamper.json()["decision"] == "hold"
