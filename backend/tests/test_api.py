@@ -120,3 +120,27 @@ def test_tenant_specific_audit(client):
     assert client.get("/v1/audit/verify", headers=headers("other")).json()["checked"] == 0
     assert client.get("/v1/metrics", headers=headers("other")).json()["open_cases"] == 0
     assert client.get("/v1/audit/verify", headers=headers("analyst")).status_code == 200
+
+def test_security_headers_and_large_body(client):
+    response = client.get("/health")
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    response = client.post("/v1/evaluate", headers={"X-API-Key": "admin", "Content-Length": "200000"}, content=b"{}")
+    assert response.status_code == 413
+
+def test_recovery_closed_without_verified_identity_proof(client):
+    data = {"request_id": str(uuid.uuid4()), "subject_id": "alice", "action": "recovery"}
+    response = client.post("/v1/evaluate", headers=headers(), json=data)
+    assert response.status_code == 403
+    assert "re-proofing" in response.json()["detail"]
+
+def test_analyst_cannot_evaluate_or_start_challenge(client):
+    data = {"request_id": str(uuid.uuid4()), "subject_id": "alice", "action": "login"}
+    response = client.post("/v1/evaluate", headers=headers("analyst"), json=data)
+    assert response.status_code == 403
+    response = client.post("/v1/challenges", headers=headers("analyst"), json={"subject_id": "alice", "action": "login"})
+    assert response.status_code == 403
+
+def test_development_keys_disabled_outside_development(client, monkeypatch):
+    monkeypatch.setenv("AEGIS_MODE", "production")
+    assert client.get("/v1/events", headers=headers()).status_code == 503
