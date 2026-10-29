@@ -27,6 +27,12 @@ This is still **synthetic sandbox assurance**, not legally verified identities o
 
 **Local browser flow:** copy `.env.example` to `.env`, set an administrator API key, run Docker Compose, open `http://localhost:8080`, click **1. Synthetic proofing grant**, **2. Register WebAuthn passkey**, and **Evaluate with passkey**. The expected RP ID is `localhost` and origin is `http://localhost:8080` by default. If using Vite on port 5173 instead of Docker, set backend `AEGIS_ORIGIN=http://localhost:5173`.
 
+## Authenticated temporal transfer graph analysis
+
+The fraud backend evaluates signed transfer telemetry as a bounded 24-hour directed graph. It computes outbound payee fan-out, shared-beneficiary concentration, reciprocal transfer patterns, three-node cycles and connected components. Investigators can query `GET /v1/graph/accounts/{subject_ref}` with analyst/admin credentials. Graph signals are versioned, tenant-isolated and explicitly treated as investigation leads, **not proof of a crime**.
+
+Subject, device and beneficiary references use HMAC-based tenant-specific pseudonyms. For staging, configure a high-entropy `AEGIS_REFERENCE_HMAC_KEY` outside source control; key rotation requires planned historical-reference migration. The GitHub workflows run vulnerability and static security checks, but these do not establish independent certification.
+
 ## Current security and production status
 
 The API now restricts development keys to `AEGIS_MODE=development`, supports configured issuer-verified JWT access tokens in `AEGIS_MODE=staging`, rate-limits sensitive requests, and blocks account recovery without a separate re-proofing flow. **Production mode deliberately refuses to start:** identity proofing, WebAuthn, trusted signals, production infrastructure and security validation must be completed first. See [production readiness gates](docs/PRODUCTION_READINESS.md). These are security safeguards, not proof of certification.
