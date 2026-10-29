@@ -155,6 +155,7 @@ def test_staging_requires_valid_oidc_config(monkeypatch):
 def test_staging_rejects_development_keys(client, monkeypatch):
     from app.auth import validate_mode
     monkeypatch.setenv("AEGIS_MODE", "staging")
+    monkeypatch.setenv("AEGIS_REFERENCE_HMAC_KEY", "test-only-identity-hmac-key-32bytes-minimum-abc123")
     monkeypatch.setenv("AEGIS_OIDC_ISSUER", "https://identity.example.org/")
     monkeypatch.setenv("AEGIS_OIDC_AUDIENCE", "aegis-api")
     monkeypatch.setenv("AEGIS_OIDC_JWKS_URL", "https://identity.example.org/keys")
@@ -170,6 +171,7 @@ def test_staging_jwt_signature_and_audience(client, monkeypatch):
     from datetime import datetime, timezone, timedelta
     from app import auth
     monkeypatch.setenv("AEGIS_MODE", "staging")
+    monkeypatch.setenv("AEGIS_REFERENCE_HMAC_KEY", "test-only-identity-hmac-key-32bytes-minimum-abc123")
     monkeypatch.setenv("AEGIS_OIDC_ISSUER", "https://issuer.example.org/")
     monkeypatch.setenv("AEGIS_OIDC_AUDIENCE", "aegis-api")
     monkeypatch.setenv("AEGIS_OIDC_JWKS_URL", "https://issuer.example.org/jwks")
