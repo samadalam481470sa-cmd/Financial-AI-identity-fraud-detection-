@@ -8,7 +8,9 @@
 - Development API keys disabled in staging; staging uses issuer-verified RS256 JWT access tokens from a fixed HTTPS JWKS address.
 - Expected audience and issuer enforced; required expiry/issued-at and tenant/role claims; analyst role cannot evaluate transactions.
 - Recovery API denied until independently verified recovery/re-proofing is implemented.
-- Exact-transaction Ed25519 signing in the research prototype, single-use challenge, revocation and idempotency.
+- Browser WebAuthn registration and transaction-bound assertions with strict RP ID/origin, challenge, UV, signature counter and revocation. Real-browser virtual-authenticator integration test passes. External identity proofing is still missing.
+- Additional Ed25519 demonstration signing, single-use challenges, revocation and idempotency.
+- Separately authenticated and Ed25519-signed telemetry ingestion with hashed subject references, replay checks and trusted rule-derived fraud signals. Stage ignores caller-provided fraud flags.
 - Request size cap, security response headers, atomic per-credential request throttling (SQLite-backed), event-chain integrity verification, tenant-scoped audit and investigation data.
 - Containerized backend and web, synthetic ML research and tested UI screenshot capture automation.
 
@@ -17,9 +19,9 @@
 | Gate | Status | Evidence needed before enabling |
 | --- | --- | --- |
 | Real identity proofing and issuer checks | NOT IMPLEMENTED | Document verification vendor integration, assurance mapping, consent, adversarial test results |
-| WebAuthn passkeys, origins, RP ID, attestation | NOT IMPLEMENTED | End-to-end WebAuthn RP verification and negative tests |
+| WebAuthn passkeys, origin, RP ID | IMPLEMENTED FOR SANDBOX | Real-browser signed action tests passing; requires issuer-bound real account enrollment, recovery and assurance validation |
 | Secure account recovery | BLOCKED BY DESIGN | Independent recovery process, notification, escalation, appeals, red-team tests |
-| Authenticated telemetry provenance | NOT IMPLEMENTED | Device/velocity/beneficiary signals from trusted systems, not caller supplied |
+| Authenticated telemetry provenance | PARTIAL | Ed25519 source signatures and role binding implemented; actual trusted issuer instrumentation, device posture and ingestion operations remain |
 | PostgreSQL row-level security | NOT IMPLEMENTED | Enforced RLS, tenant isolation tests, migration and rollback plan |
 | Production IAM / service identity | PARTIAL (staging JWT) | Tested IdP, service-to-service authn, scoped permissions, break-glass and rotation |
 | Multi-instance rate limiting / abuse prevention | PARTIAL | Distributed durable limits, bot controls and DDoS resistance |
