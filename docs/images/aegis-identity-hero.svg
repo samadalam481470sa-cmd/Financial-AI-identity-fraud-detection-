@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+<title id="title">AEGIS IDENTITY — Adaptive Evidence-Grounded Identity Security</title>
+<desc id="desc">Navy and cyan abstract identity security hero with four capabilities and synthetic-only label.</desc>
+<defs>
+  <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#030913"/><stop offset=".55" stop-color="#101d33"/><stop offset="1" stop-color="#062b39"/></linearGradient>
+  <linearGradient id="cyan"><stop stop-color="#20e6d9"/><stop offset="1" stop-color="#299fee"/></linearGradient>
+  <radialGradient id="light"><stop stop-color="#21d5cc" stop-opacity=".3"/><stop offset="1" stop-color="#21d5cc" stop-opacity="0"/></radialGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="26"/></filter>
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#164456" stroke-opacity=".32"/></pattern>
+</defs>
+<rect width="1280" height="420" rx="28" fill="url(#bg)"/>
+<rect width="1280" height="420" rx="28" fill="url(#grid)"/>
+<circle cx="1100" cy="85" r="240" fill="url(#light)" filter="url(#glow)"/>
+<circle cx="102" cy="335" r="240" fill="url(#light)" opacity=".7"/>
+<g stroke="#2b6681" stroke-opacity=".35" fill="none">
+  <circle cx="1045" cy="211" r="148"/><circle cx="1045" cy="211" r="100"/><circle cx="1045" cy="211" r="53"/>
+  <path d="M838 210h400M1045 15v386M900 110L1190 308M900 308L1190 110"/>
+</g>
+<path d="M1020 88l67 27v74c0 50-31 84-67 106-36-22-67-56-67-106v-74z" fill="#0b2735" stroke="#27d8d0" stroke-width="5"/>
+<path d="M1019 128l-40 95 34-19 13-34 16 40h30z" fill="url(#cyan)"/>
+<text x="70" y="90" fill="#d4e7f2" font-size="22" font-family="Arial,sans-serif" letter-spacing="6" font-weight="bold">AEGIS</text>
+<text x="70" y="158" fill="url(#cyan)" font-size="72" font-family="Arial,sans-serif" font-weight="bold" letter-spacing="4">IDENTITY</text>
+<text x="74" y="201" fill="#d4e5f0" font-size="23" font-family="Arial,sans-serif">Adaptive Evidence-Grounded Identity Security</text>
+<text x="75" y="238" fill="#8daec1" font-size="14" font-family="Arial,sans-serif" letter-spacing="3">VERIFY INTENT  ·  ANALYZE CONTEXT  ·  STOP FRAUD</text>
+<g font-family="Arial,sans-serif" font-size="15" fill="#b0f9f0">
+<rect x="70" y="282" width="194" height="54" rx="12" fill="#0b2939" stroke="#2b7b8b"/>
+<rect x="277" y="282" width="194" height="54" rx="12" fill="#0b2939" stroke="#2b7b8b"/>
+<rect x="484" y="282" width="194" height="54" rx="12" fill="#0b2939" stroke="#2b7b8b"/>
+<rect x="691" y="282" width="194" height="54" rx="12" fill="#0b2939" stroke="#2b7b8b"/>
+<text x="97" y="314">◆ WebAuthn Passkeys</text>
+<text x="300" y="314">◈ Signed Telemetry</text>
+<text x="504" y="314">◇ Fraud Graphs</text>
+<text x="714" y="314">◉ Adaptive Policy</text>
+</g>
+<text x="74" y="381" fill="#80a7b5" font-size="13" font-family="Arial,sans-serif" letter-spacing="2">ENGINEERING PROTOTYPE  /  SOURCE-VERIFIED DEMONSTRATIONS</text>
+<rect x="959" y="336" width="252" height="39" rx="20" fill="#10293d" stroke="#3b8f9b"/>
+<text x="976" y="362" fill="#aff1e8" font-family="Arial,sans-serif" font-size="13" font-weight="bold">SYNTHETIC DATA ONLY</text>
+</svg>
