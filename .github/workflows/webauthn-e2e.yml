@@ -1,0 +1,55 @@
+name: WebAuthn browser integration
+on:
+  push:
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - "scripts/verify-passkeys.mjs"
+      - ".github/workflows/webauthn-e2e.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - "scripts/verify-passkeys.mjs"
+permissions:
+  contents: read
+jobs:
+  browser-passkey:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install backend and Playwright Chromium
+        run: |
+          python -m pip install -r backend/requirements.txt
+          cd frontend
+          npm install --no-audit --no-fund
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Launch local-only real servers
+        env:
+          AEGIS_MODE: development
+          AEGIS_DB_PATH: /tmp/aegis-webauthn-e2e.sqlite3
+          AEGIS_API_KEYS: '{"local-web-authn-e2e-key":{"tenant":"test","role":"admin"}}'
+          AEGIS_RP_ID: localhost
+          AEGIS_ORIGIN: http://localhost:5173
+        run: |
+          PYTHONPATH=backend python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/aegis-api.log 2>&1 &
+          (cd frontend && npm run dev -- --host localhost) > /tmp/aegis-web.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://localhost:8000/health >/dev/null && curl --fail --silent http://localhost:5173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/aegis-api.log
+          cat /tmp/aegis-web.log
+          exit 1
+      - name: Verify actual browser passkey registration and signed intent
+        run: |
+          cp scripts/verify-passkeys.mjs frontend/verify-passkeys.mjs
+          (cd frontend && node verify-passkeys.mjs) || (cat /tmp/aegis-api.log && cat /tmp/aegis-web.log && exit 1)
