@@ -24,6 +24,7 @@ from .auth import principal, validate_mode
 from .passkeys import init_passkey_db, register_passkey_routes, verify_passkey_assertion
 from .telemetry import init_telemetry_db, register_telemetry_routes, trusted_features
 from .security import ref
+from .graph import analyze_transfer_graph, register_graph_routes
 
 app = FastAPI(title="AEGIS IDENTITY", version="0.4.0")
 
@@ -291,6 +292,11 @@ def evaluate(item: Evaluation, p=Depends(principal)):
             c, tenant, item.subject_id, item.beneficiary_id, item.device_id)
         risk = min(100, risk + trusted_score)
         reasons.extend(trusted_reasons)
+        graph_score, graph_reasons, graph_evidence = analyze_transfer_graph(
+            c, tenant, ref(tenant, item.subject_id)
+        )
+        risk = min(100, risk + graph_score)
+        reasons.extend(graph_reasons)
         # Independently measured activity; callers cannot suppress this signal.
         subject_ref = ref(tenant, item.subject_id)
         window_start = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
@@ -332,6 +338,7 @@ def evaluate(item: Evaluation, p=Depends(principal)):
                     "risk_signals": reasons, "server_observed_events_1h": history_count,
                     "client_context_used_in_risk": os.getenv("AEGIS_MODE", "development") == "development",
                     "verified_telemetry": trusted_evidence,
+                    "temporal_graph": graph_evidence,
                     "proofing_source": "synthetic-only" if passkey_signed else "not-applicable"}
         canonical = {"id": event_id, "tenant": tenant, "subject_ref": subject_ref,
                      "decision": decision, "risk": risk, "timestamp": date, "evidence": evidence}
@@ -423,3 +430,4 @@ def update_case(case_id: str, item: CaseUpdate, p=Depends(require_analyst)):
 
 register_passkey_routes(app, database, principal, require_admin, digest, now)
 register_telemetry_routes(app, database, principal, now)
+register_graph_routes(app, database, require_analyst)
