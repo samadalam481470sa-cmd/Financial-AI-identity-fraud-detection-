@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from .auth import principal, validate_mode
 from .passkeys import init_passkey_db, register_passkey_routes, verify_passkey_assertion
 from .telemetry import init_telemetry_db, register_telemetry_routes, trusted_features
+from .security import ref
 
 app = FastAPI(title="AEGIS IDENTITY", version="0.4.0")
 
@@ -291,7 +292,7 @@ def evaluate(item: Evaluation, p=Depends(principal)):
         risk = min(100, risk + trusted_score)
         reasons.extend(trusted_reasons)
         # Independently measured activity; callers cannot suppress this signal.
-        subject_ref = hashlib.sha256((tenant + ":" + item.subject_id).encode()).hexdigest()[:20]
+        subject_ref = ref(tenant, item.subject_id)
         window_start = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
         history_count = c.execute(
             "SELECT COUNT(*) AS n FROM decisions WHERE tenant=? AND subject_ref=? AND occurred_at>=?",
