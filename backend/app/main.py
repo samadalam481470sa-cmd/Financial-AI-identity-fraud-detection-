@@ -16,10 +16,25 @@ from typing import Literal
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="AEGIS IDENTITY", version="0.3.0")
+app = FastAPI(title="AEGIS IDENTITY", version="0.4.0")
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    # Explicit protections; TLS and IdP remain the deployer's responsibility.
+    if int(request.headers.get("content-length", "0") or "0") > 131072:
+        return JSONResponse({"detail": "Request too large"}, status_code=413)
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    return response
+
 LOCK = threading.RLock()
 DB_PATH = os.getenv("AEGIS_DB_PATH", "aegis.db")
 MODEL_VERSION = "baseline-rules-4"
@@ -73,6 +88,11 @@ def init_db():
 
 @app.on_event("startup")
 def on_startup():
+    # The demo API key, caller-declared device telemetry and SQLite storage
+    # are not safe for external deployments. Block accidental production launch.
+    mode = os.getenv("AEGIS_MODE", "development")
+    if mode != "development":
+        raise RuntimeError("AEGIS_MODE must remain development until external IAM, proofing, verified telemetry, database isolation and independent security review exist")
     init_db()
 
 def principals():
@@ -88,6 +108,8 @@ def principals():
         return {}
 
 def principal(x_api_key: str | None = Header(default=None)):
+    if os.getenv("AEGIS_MODE", "development") != "development":
+        raise HTTPException(503, "Demo authentication disabled outside development")
     if not x_api_key:
         raise HTTPException(401, "API key required")
     for key, entry in principals().items():
@@ -160,6 +182,8 @@ def intent_payload(i: Intent):
 def challenge(i: Intent, p=Depends(principal)):
     nonce = str(uuid.uuid4())
     expires = (datetime.now(timezone.utc) + timedelta(minutes=3)).isoformat()
+    if p["role"] not in ("admin", "service"):
+        raise HTTPException(403, "Challenge requires service or demo admin role")
     tenant = p["tenant"]
     message = digest({"challenge_id": nonce, "tenant": tenant, "intent": intent_payload(i)})
     with database() as c:
@@ -215,9 +239,18 @@ def score(item):
 
 @app.post("/v1/evaluate")
 def evaluate(item: Evaluation, p=Depends(principal)):
+    # Only the sandbox service role may submit risk decisions and admin may
+    # exercise the synthetic test console. Analyst cannot impersonate customers.
+    if p["role"] not in ("admin", "service"):
+        raise HTTPException(403, "Evaluation requires service or demo admin role")
     tenant = p["tenant"]
     incoming = item.model_dump()
     input_hash = digest(incoming)
+    # Recovery cannot simply be authorized by a possession key; require
+    # independent human-assisted, previously established recovery proofing.
+    # This prototype has no such verified process, so recovery fails closed.
+    if item.action == "recovery":
+        raise HTTPException(403, "Recovery blocked pending independent identity re-proofing")
     with database() as c:
         c.execute("BEGIN IMMEDIATE")
         existing = c.execute("SELECT request_hash,decision_id FROM requests WHERE tenant=? AND request_id=?",
@@ -287,7 +320,7 @@ def format_decision(r):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "aegis-identity", "version": "0.3.0"}
+    return {"status": "ok", "service": "aegis-identity", "version": "0.4.0"}
 
 @app.get("/v1/events")
 def events(limit: int = 50, p=Depends(require_analyst)):
