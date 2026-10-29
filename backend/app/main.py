@@ -22,8 +22,8 @@ from pydantic import BaseModel, Field
 app = FastAPI(title="AEGIS IDENTITY", version="0.3.0")
 LOCK = threading.RLock()
 DB_PATH = os.getenv("AEGIS_DB_PATH", "aegis.db")
-MODEL_VERSION = "baseline-rules-3"
-POLICY_VERSION = "continuity-policy-3"
+MODEL_VERSION = "baseline-rules-4"
+POLICY_VERSION = "continuity-policy-4"
 
 def now():
     return datetime.now(timezone.utc).isoformat()
@@ -232,6 +232,16 @@ def evaluate(item: Evaluation, p=Depends(principal)):
             return format_decision(record)
         signed = verify_signature(c, item, tenant)
         risk, reasons = score(item)
+        # Independently measured activity; callers cannot suppress this signal.
+        subject_ref = hashlib.sha256((tenant + ":" + item.subject_id).encode()).hexdigest()[:20]
+        window_start = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+        history_count = c.execute(
+            "SELECT COUNT(*) AS n FROM decisions WHERE tenant=? AND subject_ref=? AND occurred_at>=?",
+            (tenant, subject_ref, window_start)
+        ).fetchone()["n"]
+        if history_count >= 3:
+            risk = min(100, risk + min(30, 6 * history_count))
+            reasons.append("SERVER_OBSERVED_VELOCITY")
         sensitive = item.action in ("login", "transfer", "profile_change", "recovery")
         if sensitive and not signed:
             decision = "challenge" if item.action == "login" else "hold"
@@ -247,13 +257,13 @@ def evaluate(item: Evaluation, p=Depends(principal)):
             decision = "allow"
         event_id = str(uuid.uuid4())
         date = now()
-        subject_ref = hashlib.sha256((tenant + ":" + item.subject_id).encode()).hexdigest()[:20]
         previous = c.execute("SELECT event_hash FROM decisions WHERE tenant=? ORDER BY rowid DESC LIMIT 1",
                              (tenant,)).fetchone()
         previous_hash = previous["event_hash"] if previous else "GENESIS"
         evidence = {"signature_verified": signed, "credential_id": item.credential_id if signed else None,
                     "intent_digest": digest(intent_payload(Intent(**incoming))),
-                    "risk_signals": reasons}
+                    "risk_signals": reasons, "server_observed_events_1h": history_count,
+                    "context_signals_are_client_supplied": True}
         canonical = {"id": event_id, "tenant": tenant, "subject_ref": subject_ref,
                      "decision": decision, "risk": risk, "timestamp": date, "evidence": evidence}
         event_hash = digest({"previous_hash": previous_hash, "record": canonical})
@@ -286,6 +296,41 @@ def events(limit: int = 50, p=Depends(require_analyst)):
         rows = c.execute("SELECT * FROM decisions WHERE tenant=? ORDER BY rowid DESC LIMIT ?",
                          (p["tenant"], limit)).fetchall()
     return {"events": [format_decision(row) for row in rows]}
+
+
+@app.get("/v1/audit/verify")
+def verify_audit_chain(p=Depends(require_analyst)):
+    """Recompute per-tenant hash chain. Not an externally anchored tamper-proof ledger."""
+    with database() as c:
+        rows = c.execute("SELECT * FROM decisions WHERE tenant=? ORDER BY rowid ASC",
+                         (p["tenant"],)).fetchall()
+    previous_hash = "GENESIS"
+    for index, row in enumerate(rows):
+        evidence = json.loads(row["evidence"])
+        canonical = {"id": row["id"], "tenant": row["tenant"],
+                     "subject_ref": row["subject_ref"], "decision": row["decision"],
+                     "risk": row["score"], "timestamp": row["occurred_at"], "evidence": evidence}
+        expected = digest({"previous_hash": previous_hash, "record": canonical})
+        if not hmac.compare_digest(row["prev_hash"], previous_hash) or not hmac.compare_digest(row["event_hash"], expected):
+            return {"valid": False, "checked": index, "first_invalid_id": row["id"],
+                    "anchored_externally": False}
+        previous_hash = row["event_hash"]
+    return {"valid": True, "checked": len(rows), "head_hash": previous_hash,
+            "anchored_externally": False}
+
+@app.get("/v1/metrics")
+def metrics(p=Depends(require_analyst)):
+    with database() as c:
+        rows = c.execute(
+            "SELECT decision, COUNT(*) AS count FROM decisions WHERE tenant=? GROUP BY decision",
+            (p["tenant"],)).fetchall()
+        open_cases = c.execute(
+            "SELECT COUNT(*) AS n FROM cases WHERE tenant=? AND status != 'resolved'",
+            (p["tenant"],)).fetchone()["n"]
+    counts = {row["decision"]: row["count"] for row in rows}
+    return {"counts": {"allow": counts.get("allow", 0), "challenge": counts.get("challenge", 0),
+                       "hold": counts.get("hold", 0)}, "open_cases": open_cases,
+            "model_version": MODEL_VERSION, "policy_version": POLICY_VERSION}
 
 @app.get("/v1/cases")
 def cases(p=Depends(require_analyst)):
