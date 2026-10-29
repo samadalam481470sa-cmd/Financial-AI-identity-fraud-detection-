@@ -26,13 +26,15 @@ def validate_mode():
     if mode not in ("development", "staging", "production"):
         raise RuntimeError("Invalid AEGIS_MODE")
     if mode == "staging":
-        required = ("AEGIS_OIDC_ISSUER", "AEGIS_OIDC_AUDIENCE", "AEGIS_OIDC_JWKS_URL")
+        required = ("AEGIS_OIDC_ISSUER", "AEGIS_OIDC_AUDIENCE", "AEGIS_OIDC_JWKS_URL", "AEGIS_REFERENCE_HMAC_KEY")
         if any(not os.getenv(key) for key in required):
             raise RuntimeError("OIDC issuer, audience and JWKS are mandatory for staging")
         if not os.environ["AEGIS_OIDC_ISSUER"].startswith("https://"):
             raise RuntimeError("OIDC issuer must use HTTPS")
         if not os.environ["AEGIS_OIDC_JWKS_URL"].startswith("https://"):
             raise RuntimeError("OIDC JWKS must use HTTPS")
+        if len(os.getenv("AEGIS_REFERENCE_HMAC_KEY", "").encode("utf-8")) < 32:
+            raise RuntimeError("AEGIS_REFERENCE_HMAC_KEY must contain at least 32 bytes")
         if os.getenv("AEGIS_API_KEYS"):
             raise RuntimeError("Demo API keys are forbidden in staging")
     if mode == "production":
