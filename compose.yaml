@@ -4,8 +4,17 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
+      AEGIS_MODE: ${AEGIS_MODE:-development}
       AEGIS_DB_PATH: /data/aegis.db
-      AEGIS_API_KEYS: ${AEGIS_API_KEYS:?Set AEGIS_API_KEYS in your .env file or shell}
+      AEGIS_API_KEYS: ${AEGIS_API_KEYS:-}
+      AEGIS_REFERENCE_HMAC_KEY: ${AEGIS_REFERENCE_HMAC_KEY:-}
+      AEGIS_RP_ID: ${AEGIS_RP_ID:-localhost}
+      AEGIS_ORIGIN: ${AEGIS_ORIGIN:-http://localhost:8080}
+      AEGIS_RATE_LIMIT_PER_MINUTE: ${AEGIS_RATE_LIMIT_PER_MINUTE:-120}
+      AEGIS_OIDC_ISSUER: ${AEGIS_OIDC_ISSUER:-}
+      AEGIS_OIDC_AUDIENCE: ${AEGIS_OIDC_AUDIENCE:-}
+      AEGIS_OIDC_JWKS_URL: ${AEGIS_OIDC_JWKS_URL:-}
+      AEGIS_TELEMETRY_SIGNERS: ${AEGIS_TELEMETRY_SIGNERS:-}
     volumes:
       - aegis-data:/data
     restart: unless-stopped
