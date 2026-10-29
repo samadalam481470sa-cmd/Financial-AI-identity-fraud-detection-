@@ -19,6 +19,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from .auth import principal, validate_mode
 
 app = FastAPI(title="AEGIS IDENTITY", version="0.4.0")
 
@@ -90,33 +91,8 @@ def init_db():
 def on_startup():
     # The demo API key, caller-declared device telemetry and SQLite storage
     # are not safe for external deployments. Block accidental production launch.
-    mode = os.getenv("AEGIS_MODE", "development")
-    if mode != "development":
-        raise RuntimeError("AEGIS_MODE must remain development until external IAM, proofing, verified telemetry, database isolation and independent security review exist")
+    validate_mode()
     init_db()
-
-def principals():
-    # Format: {"demo-admin":{"tenant":"demo","role":"admin"},...}
-    # Never put secrets in source control; use an identity provider outside prototype.
-    raw = os.environ.get("AEGIS_API_KEYS", "")
-    if not raw:
-        return {}
-    try:
-        data = json.loads(raw)
-        return data if isinstance(data, dict) else {}
-    except ValueError:
-        return {}
-
-def principal(x_api_key: str | None = Header(default=None)):
-    if os.getenv("AEGIS_MODE", "development") != "development":
-        raise HTTPException(503, "Demo authentication disabled outside development")
-    if not x_api_key:
-        raise HTTPException(401, "API key required")
-    for key, entry in principals().items():
-        if hmac.compare_digest(x_api_key, key) and isinstance(entry, dict):
-            if entry.get("tenant") and entry.get("role") in ("admin", "analyst", "service"):
-                return entry
-    raise HTTPException(401, "Invalid API key")
 
 def require_admin(p=Depends(principal)):
     if p["role"] != "admin":
