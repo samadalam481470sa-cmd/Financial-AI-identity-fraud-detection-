@@ -21,6 +21,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from .auth import principal, validate_mode
+from .passkeys import init_passkey_db, register_passkey_routes, verify_passkey_assertion
 
 app = FastAPI(title="AEGIS IDENTITY", version="0.4.0")
 
@@ -29,7 +30,7 @@ async def security_headers(request: Request, call_next):
     # Explicit protections; TLS and IdP remain the deployer's responsibility.
     if int(request.headers.get("content-length", "0") or "0") > 131072:
         return JSONResponse({"detail": "Request too large"}, status_code=413)
-    if request.method == "POST" and request.url.path in ("/v1/evaluate", "/v1/challenges", "/v1/credentials"):
+    if request.method == "POST" and request.url.path in ("/v1/evaluate", "/v1/challenges", "/v1/credentials", "/v1/passkeys/registration/options", "/v1/passkeys/registration/verify", "/v1/passkeys/authentication/options", "/v1/passkeys/sandbox-proofing"):
         # SQLite transaction serializes increments across local processes. Source
         # address is informational; do not trust caller-supplied forwarded headers.
         bearer = request.headers.get("authorization", "")
@@ -113,6 +114,7 @@ def init_db():
             analyst_note TEXT NOT NULL DEFAULT ''
         );
         """)
+        init_passkey_db(c)
 
 @app.on_event("startup")
 def on_startup():
@@ -205,6 +207,8 @@ class Evaluation(Intent):
     recent_failed_attempts: int = Field(default=0, ge=0, le=10000)
     velocity_1h: int = Field(default=0, ge=0, le=10000)
     newly_added_beneficiary: bool = False
+    passkey_challenge_id: str | None = None
+    passkey_credential: dict | None = None
 
 def verify_signature(c, item, tenant):
     if not all([item.credential_id, item.challenge_id, item.signature_b64]):
@@ -266,7 +270,9 @@ def evaluate(item: Evaluation, p=Depends(principal)):
                                (existing["decision_id"], tenant)).fetchone()
             c.execute("COMMIT")
             return format_decision(record)
-        signed = verify_signature(c, item, tenant)
+        ed25519_signed = verify_signature(c, item, tenant)
+        passkey_signed = verify_passkey_assertion(c, item, tenant, digest)
+        signed = ed25519_signed or passkey_signed
         risk, reasons = score(item)
         # Independently measured activity; callers cannot suppress this signal.
         subject_ref = hashlib.sha256((tenant + ":" + item.subject_id).encode()).hexdigest()[:20]
@@ -302,10 +308,13 @@ def evaluate(item: Evaluation, p=Depends(principal)):
         previous = c.execute("SELECT event_hash FROM decisions WHERE tenant=? ORDER BY rowid DESC LIMIT 1",
                              (tenant,)).fetchone()
         previous_hash = previous["event_hash"] if previous else "GENESIS"
-        evidence = {"signature_verified": signed, "credential_id": item.credential_id if signed else None,
+        evidence = {"signature_verified": signed, "passkey_verified": passkey_signed,
+                    "legacy_demo_signature_verified": ed25519_signed,
+                    "credential_id": item.credential_id if ed25519_signed else None,
                     "intent_digest": digest(intent_payload(Intent(**incoming))),
                     "risk_signals": reasons, "server_observed_events_1h": history_count,
-                    "context_signals_are_client_supplied": True}
+                    "context_signals_are_client_supplied": True,
+                    "proofing_source": "synthetic-only" if passkey_signed else "not-applicable"}
         canonical = {"id": event_id, "tenant": tenant, "subject_ref": subject_ref,
                      "decision": decision, "risk": risk, "timestamp": date, "evidence": evidence}
         event_hash = digest({"previous_hash": previous_hash, "record": canonical})
@@ -393,3 +402,5 @@ def update_case(case_id: str, item: CaseUpdate, p=Depends(require_analyst)):
     if not cur.rowcount:
         raise HTTPException(404, "Case not found")
     return {"updated": True, "case_id": case_id, "status": item.status}
+
+register_passkey_routes(app, database, principal, require_admin, digest, now)
