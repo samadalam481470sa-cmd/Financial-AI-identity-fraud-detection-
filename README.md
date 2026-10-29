@@ -1,6 +1,16 @@
 # AEGIS IDENTITY
 ### Adaptive Evidence-Grounded Identity Security
 
+<div align="center">
+
+![AEGIS IDENTITY — security engineering hero](docs/images/aegis-identity-hero.svg)
+
+**Passkeys · Cryptographically signed telemetry · Risk intelligence · Fraud graph analytics**
+
+[Live code](./backend/app) · [Launch locally](#one-command-full-stack-docker-demo) · [Production readiness](docs/PRODUCTION_READINESS.md) · [Security design](docs/SECURITY.md)
+
+</div>
+
 A runnable full-stack fraud prevention and identity continuity research prototype. **Stolen personal information alone must not authorize access or sensitive actions.**
 
 **Status:** local testable demo. Non-development API-key authentication is disabled and production mode currently refuses startup pending external integrations and independent review. Not certified, independently audited, production-ready, a live bank integration, a real identity-proofing system or a trained fraud ML model. Use synthetic data only.
@@ -37,19 +47,18 @@ Subject, device and beneficiary references use HMAC-based tenant-specific pseudo
 
 The API now restricts development keys to `AEGIS_MODE=development`, supports configured issuer-verified JWT access tokens in `AEGIS_MODE=staging`, rate-limits sensitive requests, and blocks account recovery without a separate re-proofing flow. **Production mode deliberately refuses to start:** identity proofing, WebAuthn, trusted signals, production infrastructure and security validation must be completed first. See [production readiness gates](docs/PRODUCTION_READINESS.md). These are security safeguards, not proof of certification.
 
-## Dashboard screenshots
+## Dashboard gallery — real application screenshots
 
-These are captured from the **real React dashboard** by a browser automation workflow using explicitly **synthetic, mocked API responses**. They demonstrate the UI; they are **not actual fraud detections** or evidence of trained-model performance.
+These screenshots are captured from the actual running React dashboard, using a clearly identified **synthetic API fixture**. They are not claims of real customers, real-world fraud detection accuracy, or a live financial integration.
 
-### Security operations overview
+| Security operations overview | Transaction fraud investigation |
+|:--:|:--:|
+| ![Real AEGIS IDENTITY operations dashboard with synthetic risk metrics](docs/images/dashboard-overview.png) | ![Real AEGIS IDENTITY synthetic high-risk transfer evaluation and investigation console](docs/images/fraud-detection-demo.png) |
+| Tenant analytics, case management and integrity checks | Risk decision, evidence reasons, signed action and review workflow |
 
-![AEGIS IDENTITY dashboard overview — synthetic demonstration](docs/images/dashboard-overview.png)
+**Reproduce the screenshots:** [browser automation source](scripts/capture-dashboard.mjs) · [automated workflow](.github/workflows/dashboard-screenshots.yml).
 
-### Fraud decision and investigation workflow
-
-![AEGIS IDENTITY fraud detection — illustrative risk score and HOLD decision](docs/images/fraud-detection-demo.png)
-
-See [screenshot capture workflow](.github/workflows/dashboard-screenshots.yml) and [browser automation fixture](scripts/capture-dashboard.mjs) to reproduce the images.
+**Visual direction:** The banner is an authored conceptual illustration; the two dashboard images are real captures from the project's executable frontend. The illustration is not a product feature screenshot.
 
 ## One-command full-stack Docker demo
 
