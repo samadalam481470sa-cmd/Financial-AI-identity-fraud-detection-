@@ -220,6 +220,7 @@ def test_staging_never_allows_action_without_proofing(client, monkeypatch):
     signed_challenge = client.post("/v1/challenges", json=intent, headers=headers()).json()
     signature = base64.b64encode(ed_key.sign(signed_challenge["message_to_sign"].encode())).decode()
     monkeypatch.setenv("AEGIS_MODE", "staging")
+    monkeypatch.setenv("AEGIS_REFERENCE_HMAC_KEY", "test-staging-reference-hmac-key-with-at-least-32bytes")
     monkeypatch.setenv("AEGIS_OIDC_ISSUER", "https://issuer.example.org/")
     monkeypatch.setenv("AEGIS_OIDC_AUDIENCE", "aegis-api")
     monkeypatch.setenv("AEGIS_OIDC_JWKS_URL", "https://issuer.example.org/jwks")
