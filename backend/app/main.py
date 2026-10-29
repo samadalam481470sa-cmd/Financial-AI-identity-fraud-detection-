@@ -22,6 +22,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from .auth import principal, validate_mode
 from .passkeys import init_passkey_db, register_passkey_routes, verify_passkey_assertion
+from .telemetry import init_telemetry_db, register_telemetry_routes, trusted_features
 
 app = FastAPI(title="AEGIS IDENTITY", version="0.4.0")
 
@@ -30,7 +31,7 @@ async def security_headers(request: Request, call_next):
     # Explicit protections; TLS and IdP remain the deployer's responsibility.
     if int(request.headers.get("content-length", "0") or "0") > 131072:
         return JSONResponse({"detail": "Request too large"}, status_code=413)
-    if request.method == "POST" and request.url.path in ("/v1/evaluate", "/v1/challenges", "/v1/credentials", "/v1/passkeys/registration/options", "/v1/passkeys/registration/verify", "/v1/passkeys/authentication/options", "/v1/passkeys/sandbox-proofing"):
+    if request.method == "POST" and request.url.path in ("/v1/evaluate", "/v1/challenges", "/v1/credentials", "/v1/passkeys/registration/options", "/v1/passkeys/registration/verify", "/v1/passkeys/authentication/options", "/v1/passkeys/sandbox-proofing", "/v1/telemetry/events"):
         # SQLite transaction serializes increments across local processes. Source
         # address is informational; do not trust caller-supplied forwarded headers.
         bearer = request.headers.get("authorization", "")
@@ -115,6 +116,7 @@ def init_db():
         );
         """)
         init_passkey_db(c)
+        init_telemetry_db(c)
 
 @app.on_event("startup")
 def on_startup():
@@ -209,6 +211,7 @@ class Evaluation(Intent):
     newly_added_beneficiary: bool = False
     passkey_challenge_id: str | None = None
     passkey_credential: dict | None = None
+    device_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 def verify_signature(c, item, tenant):
     if not all([item.credential_id, item.challenge_id, item.signature_b64]):
@@ -273,7 +276,20 @@ def evaluate(item: Evaluation, p=Depends(principal)):
         ed25519_signed = verify_signature(c, item, tenant)
         passkey_signed = verify_passkey_assertion(c, item, tenant, digest)
         signed = ed25519_signed or passkey_signed
-        risk, reasons = score(item)
+        # Client-supplied fraud flags remain available only for the synthetic
+        # development dashboard. In staging, untrusted flags carry no risk weight.
+        if os.getenv("AEGIS_MODE", "development") == "development":
+            risk, reasons = score(item)
+        else:
+            risk, reasons = score(item.model_copy(update={
+                "new_device": False, "known_device": True,
+                "newly_added_beneficiary": False, "recent_failed_attempts": 0,
+                "velocity_1h": 0,
+            }))
+        trusted_score, trusted_reasons, trusted_evidence = trusted_features(
+            c, tenant, item.subject_id, item.beneficiary_id, item.device_id)
+        risk = min(100, risk + trusted_score)
+        reasons.extend(trusted_reasons)
         # Independently measured activity; callers cannot suppress this signal.
         subject_ref = hashlib.sha256((tenant + ":" + item.subject_id).encode()).hexdigest()[:20]
         window_start = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
@@ -313,7 +329,8 @@ def evaluate(item: Evaluation, p=Depends(principal)):
                     "credential_id": item.credential_id if ed25519_signed else None,
                     "intent_digest": digest(intent_payload(Intent(**incoming))),
                     "risk_signals": reasons, "server_observed_events_1h": history_count,
-                    "context_signals_are_client_supplied": True,
+                    "client_context_used_in_risk": os.getenv("AEGIS_MODE", "development") == "development",
+                    "verified_telemetry": trusted_evidence,
                     "proofing_source": "synthetic-only" if passkey_signed else "not-applicable"}
         canonical = {"id": event_id, "tenant": tenant, "subject_ref": subject_ref,
                      "decision": decision, "risk": risk, "timestamp": date, "evidence": evidence}
@@ -404,3 +421,4 @@ def update_case(case_id: str, item: CaseUpdate, p=Depends(require_analyst)):
     return {"updated": True, "case_id": case_id, "status": item.status}
 
 register_passkey_routes(app, database, principal, require_admin, digest, now)
+register_telemetry_routes(app, database, principal, now)
