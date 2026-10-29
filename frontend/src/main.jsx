@@ -14,6 +14,8 @@ function App(){
   const [result,setResult]=useState(null);
   const [cases,setCases]=useState([]);
   const [events,setEvents]=useState([]);
+  const [metrics,setMetrics]=useState(null);
+  const [audit,setAudit]=useState(null);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   const [keyPair,setKeyPair]=useState(null);
@@ -28,8 +30,8 @@ function App(){
   const intent=()=>({...ident,amount_minor:Math.round(Number(amount||0)*100)});
   async function refresh(){
     try{
-      const [c,e]=await Promise.all([req('/v1/cases'),req('/v1/events')]);
-      setCases(c.cases);setEvents(e.events);
+      const [c,e,m,a]=await Promise.all([req('/v1/cases'),req('/v1/events'),req('/v1/metrics'),req('/v1/audit/verify')]);
+      setCases(c.cases);setEvents(e.events);setMetrics(m);setAudit(a);
     }catch(e){setError(String(e.message))}
   }
   function b64(bytes){return btoa(String.fromCharCode(...new Uint8Array(bytes)))}
@@ -83,6 +85,10 @@ function App(){
       </article>
     </section>
     <section className="panel credential"><div><h2>Cryptographic credential lab</h2><p>Register an ephemeral browser Ed25519 key. Signed challenges bind the exact amount and beneficiary, with one-time replay protection.</p><small>{notice}</small></div><button disabled={!apiKey||busy} onClick={registerDevice}>{keyPair?'Replace demo credential':'Register demo credential'}</button></section>
+    <section className="panel intelligence"><div className="heading"><h2>Security operations overview</h2><span>03 / TENANT TELEMETRY</span></div>
+      <div className="metric-grid"><div><strong>{metrics?.counts?.allow ?? '—'}</strong><small>Allowed</small></div><div><strong>{metrics?.counts?.challenge ?? '—'}</strong><small>Challenged</small></div><div><strong>{metrics?.counts?.hold ?? '—'}</strong><small>Held</small></div><div><strong>{metrics?.open_cases ?? '—'}</strong><small>Open cases</small></div></div>
+      <div className="audit-status">Audit chain: <strong>{audit ? (audit.valid ? 'PASS' : 'INTEGRITY ERROR') : 'NOT CHECKED'}</strong> {audit && <span> · {audit.checked} records · local hash chain, not externally anchored</span>}</div>
+    </section>
     <section className="grid investigations">
       <article className="panel"><div className="heading"><h2>Investigation cases</h2><span>{cases.length} RECENT</span></div>{!cases.length?<p className="empty">No cases loaded. High-risk or unsigned decisions create cases.</p>:cases.map(c=><div className="item" key={c.id}><div><strong>{c.status.toUpperCase()}</strong><small>{c.id.slice(0,8)} · {c.created_at.slice(0,19)}</small></div><select aria-label="Case status" value={c.status} onChange={e=>updateCase(c.id,e.target.value)}><option value="open">Open</option><option value="investigating">Investigating</option><option value="escalated">Escalated</option><option value="resolved">Resolved</option></select></div>)}</article>
       <article className="panel"><div className="heading"><h2>Audit events</h2><span>{events.length} RECENT</span></div>{!events.length?<p className="empty">No audit events loaded.</p>:events.map(e=><div className="item" key={e.id}><div><strong>{e.action.toUpperCase()} · {e.decision.toUpperCase()}</strong><small>{e.subject_ref} · {e.timestamp.slice(0,19)}</small></div><strong>{e.risk_score}/100</strong></div>)}</article>
