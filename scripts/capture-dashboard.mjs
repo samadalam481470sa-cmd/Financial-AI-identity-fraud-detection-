@@ -43,7 +43,7 @@ try {
   await page.getByText('208').waitFor();
   await page.screenshot({ path: out + '/dashboard-overview.png', fullPage: true });
   await page.getByRole('button', { name: 'Evaluate unsigned' }).click();
-  await page.getByText('94', { exact: true }).waitFor();
+  await page.locator('.score').waitFor({ state: 'visible' });
   await page.screenshot({ path: out + '/fraud-detection-demo.png', fullPage: true });
   console.log('Screenshots captured: dashboard-overview.png, fraud-detection-demo.png');
 } finally {
