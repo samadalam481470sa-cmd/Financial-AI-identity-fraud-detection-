@@ -17,6 +17,10 @@ A runnable full-stack fraud prevention and identity continuity research prototyp
 - Independent one-hour observed transaction velocity, tenant-scoped aggregate metrics and verifiable local audit hash chains
 - [Engineering blueprint](docs/BLUEPRINT.md) and [security limits and attacker tests](docs/SECURITY.md)
 
+## Current security and production status
+
+The API now restricts development keys to `AEGIS_MODE=development`, supports configured issuer-verified JWT access tokens in `AEGIS_MODE=staging`, rate-limits sensitive requests, and blocks account recovery without a separate re-proofing flow. **Production mode deliberately refuses to start:** identity proofing, WebAuthn, trusted signals, production infrastructure and security validation must be completed first. See [production readiness gates](docs/PRODUCTION_READINESS.md). These are security safeguards, not proof of certification.
+
 ## Dashboard screenshots
 
 These are captured from the **real React dashboard** by a browser automation workflow using explicitly **synthetic, mocked API responses**. They demonstrate the UI; they are **not actual fraud detections** or evidence of trained-model performance.
