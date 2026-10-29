@@ -53,5 +53,6 @@ jobs:
           git add docs/images/dashboard-overview.png docs/images/fraud-detection-demo.png
           if ! git diff --cached --quiet; then
             git commit -m "docs: add actual React dashboard screenshots with synthetic demo fixtures"
-            git push
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi
