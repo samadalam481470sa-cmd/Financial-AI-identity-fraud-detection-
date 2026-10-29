@@ -14,6 +14,16 @@
 - Request size cap, security response headers, atomic per-credential request throttling (SQLite-backed), event-chain integrity verification, tenant-scoped audit and investigation data.
 - Containerized backend and web, synthetic ML research and tested UI screenshot capture automation.
 
+## Verified latest engineering scope
+
+- WebAuthn passkey registration and transaction-bound assertion verification with real-browser Chromium virtual-authenticator tests.
+- Signed event-source ingestion, tenant-scoped fraud signals, source authentication and replay rejection.
+- Bounded temporal graph analytics for fan-out, shared beneficiaries, reciprocal transfers, and short cycles.
+- HMAC-pseudonymized identifiers; external reference key mandatory for staging.
+- CI builds, dependency vulnerability audit, static analysis, browser verification and Docker image tests.
+
+These are demonstrable engineering controls. This repository is **not** licensed or accredited as a bank, identity-proofing service or production fraud decision platform.
+
 ## Blocking release gates
 
 | Gate | Status | Evidence needed before enabling |
@@ -27,7 +37,7 @@
 | Multi-instance rate limiting / abuse prevention | PARTIAL | Distributed durable limits, bot controls and DDoS resistance |
 | Production key custody and tamper evidence | NOT IMPLEMENTED | HSM/KMS, anchored immutable logs, verified retention and deletion |
 | Production cloud architecture | NOT IMPLEMENTED | Terraform, segregated AWS accounts/VPC, policy enforcement, WAF, TLS, observability |
-| Real fraud model | NOT VALIDATED | Approved labels, prospective shadow evaluation, calibrated cost policies and fairness checks |
+| Real fraud model | NOT VALIDATED | Synthetic ML and signed-event temporal graph signals exist; real labels, shadow rollout, calibration, fairness checks and independent model review remain required |
 | Disaster recovery | NOT IMPLEMENTED | RTO/RPO, restore drills, verified backup encryption and key recovery |
 | Legal/privacy governance | NOT VERIFIED | Applicable jurisdiction mapping, privacy impact assessment, human review, contracts and retention |
 | Independent security signoff | NOT DONE | Threat model, pentest, SAST/DAST/SCA, incident response exercise, signed approval |
