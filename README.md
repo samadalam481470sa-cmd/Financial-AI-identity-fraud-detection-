@@ -162,4 +162,4 @@ The API never executes this prototype model in sensitive decisions. Real financi
 
 The owner-provided **User Fraud Detection AI — 100 Pages** PDF is the design reference. Its recommendations include signed identity continuity, transaction monitoring, privacy-aware behavioral intelligence, replay resistance, event schemas, and independent verification. Its proposed components are roadmap items unless identified above as actually implemented. See [docs/BLUEPRINT.md](docs/BLUEPRINT.md).
 
-This repository is MIT licensed. 
+This repository is licensed under Apache License 2.0. See [LICENSE](LICENSE). 
