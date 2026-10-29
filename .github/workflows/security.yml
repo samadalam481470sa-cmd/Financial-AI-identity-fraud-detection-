@@ -1,0 +1,49 @@
+name: Security dependency and static analysis
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "ml/**"
+      - ".github/workflows/security.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "ml/**"
+      - ".github/workflows/security.yml"
+permissions:
+  contents: read
+jobs:
+  python-dependency-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pip-audit
+      - name: Audit backend Python dependencies
+        run: python -m pip_audit -r backend/requirements.txt
+      - name: Audit ML dependencies
+        run: python -m pip_audit -r ml/requirements.txt
+  python-static-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install bandit
+      - name: Scan application code for medium/high-severity patterns
+        run: bandit -r backend/app --severity-level medium --confidence-level medium
+  frontend-dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: cd frontend && npm install --no-fund --no-audit
+      - run: cd frontend && npm audit --audit-level=high
