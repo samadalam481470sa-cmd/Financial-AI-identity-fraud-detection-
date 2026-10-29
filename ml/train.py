@@ -13,6 +13,7 @@ from joblib import dump
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.metrics import average_precision_score, brier_score_loss, precision_recall_fscore_support, roc_auc_score
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.frozen import FrozenEstimator
 
 FEATURE_NAMES = [
     "amount_minor_log10", "new_beneficiary", "new_device", "failed_logins_1h",
@@ -51,7 +52,7 @@ def train(output_dir: Path, n=6000):
     base = HistGradientBoostingClassifier(max_iter=90, max_leaf_nodes=13, learning_rate=.065, l2_regularization=2,
                                           random_state=SEED)
     base.fit(Xtrain, ytrain)
-    calibrated = CalibratedClassifierCV(base, cv="prefit", method="sigmoid")
+    calibrated = CalibratedClassifierCV(FrozenEstimator(base), method="sigmoid")
     calibrated.fit(Xcal, ycal)
     scores = calibrated.predict_proba(Xtest)[:, 1]
     threshold = .35  # illustrative threshold, not optimized for any real organization's loss
