@@ -232,9 +232,9 @@ def evaluate(item: Evaluation, p=Depends(principal)):
             return format_decision(record)
         signed = verify_signature(c, item, tenant)
         risk, reasons = score(item)
-        sensitive = item.action in ("transfer", "profile_change", "recovery")
+        sensitive = item.action in ("login", "transfer", "profile_change", "recovery")
         if sensitive and not signed:
-            decision = "hold"
+            decision = "challenge" if item.action == "login" else "hold"
             reasons.append("SIGNED_ACTION_REQUIRED")
         elif item.action == "enrollment":
             decision = "challenge"
